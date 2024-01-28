@@ -1,91 +1,55 @@
-import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { nanoid } from 'nanoid';
-import ContactForm from './ContactForm/ContactForm';
-import ContactList from './ContactList/ContactList';
-import Filter from './Filter/Filter';
-import { ContactListHeader, Container, PhonebookHeader, Section } from './App.styled';
 
-const LOCALSTORAGE_KEY = 'contacts-key';
+import { addContact, setFilter } from '../../redux/contactsSlice';
+import ContactsForm from 'components/ContactsForm';
+import Filter from 'components/Filter';
+import ContactsList from 'components/ContactsList';
+
+import { Container, PhoneBook, Title } from './App.styled';
 
 const App = () => {
-    const [contacts, setContacts] = useState(
-        () => JSON.parse(localStorage.getItem(LOCALSTORAGE_KEY)) ?? []
-    );
-    const [filter, setFilter] = useState(() => '');
+    const contacts = useSelector(state => state.contacts.contacts);
+    const dispatch = useDispatch();
 
-    useEffect(() => {
-        const savedState = localStorage.getItem(LOCALSTORAGE_KEY); 
+    const handleSubmit = newContact => {
+        const { name, number } = newContact;
 
-        if (savedState) {
-            const savedContacts = JSON.parse(localStorage.getItem(LOCALSTORAGE_KEY));
-            setContacts(savedContacts);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!contacts.length) {
-            localStorage.removeItem(LOCALSTORAGE_KEY);
-        } else {
-            localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(contacts));
-        }
-    }, [contacts]);
-
-    const formSubmitHandler = data => {
-        const contact = {
-            id: nanoid(),
-            ...data,
-        };
-
-        const inContacts = contacts.some(
-            ({ name }) => name.toLowerCase() === contact.name.toLowerCase()
-        );
+        const inContacts = contacts.find(contact => contact.name.toLowerCase() === name.toLowerCase());
 
         if (inContacts) {
-            alert(`${contact.name} is already in contacts.`);
+            alert(`${inContacts.name} is already in contacts`);
             return;
         }
-
-        setContacts(prevContacts => [contact, ...prevContacts]);
+        const id = nanoid();
+        dispatch(addContact({ id, name, number }));
     };
 
-    const getVisibleContacts = () => {
-        const normilizedFilter = filter.toLowerCase();
-        return contacts.filter(contact => contact.name.toLowerCase().includes(normilizedFilter));
+    const handleFilterChange = event => {
+        const value = event.currentTarget.value;
+        dispatch(setFilter({ value }));
     };
-
-    const deleteContact = contactId => {
-        setContacts(contacts.filter(({ id }) => id !== contactId));
-    };
-
-    const visibleContacts = getVisibleContacts();
 
     return (
-        <Section>
-            <Container>
-                <PhonebookHeader>Phonebook</PhonebookHeader>
-                <ContactForm onSubmit={formSubmitHandler} />
+        <Container>
+            <PhoneBook>
+                <Title>PhoneBook</Title>
+                <ContactsForm onSubmit={handleSubmit} />
+            </PhoneBook>
 
-                <ContactListHeader>Contacts</ContactListHeader>
-                {contacts.length > 0 ? (
+            <div className="contacts">
+                <Title>Contacts</Title>
+
+                {contacts?.length > 0 ? (
                     <>
-                        <Filter
-                            value={filter}
-                            onChange={({ currentTarget }) => setFilter(currentTarget.value)}
-                        />
-                        {visibleContacts.length > 0 ? (
-                            <ContactList
-                                contacts={visibleContacts}
-                                onDeleteContact={deleteContact}
-                            />
-                        ) : (
-                            <p>No contacts found</p>
-                        )}
+                        <Filter onChange={handleFilterChange} />
+                        <ContactsList />
                     </>
                 ) : (
-                    "There's nothing here"
+                    <p>There's nothing here</p>
                 )}
-            </Container>
-        </Section>
+            </div>
+        </Container>
     );
 };
 
